@@ -1,0 +1,155 @@
+<HTML>
+<HEAD>
+<META NAME="GENERATOR" Content="Microsoft Visual Studio 6.0">
+<TITLE>MsgMask</TITLE>
+</HEAD>
+<BODY>
+
+<P><STRONG>Why use a message mask?</STRONG></P>
+<P>As you can probably guess, a list of messages subclassed by each object must 
+be kept.&nbsp; During the subclass callback, the subclasser must enumerate 
+through all objects which have subclassed the given window, and check the 
+current message to see if it has been requested.&nbsp; If so, then make the 
+callback.&nbsp; If not, then move on to the next object or exit the 
+procedure.&nbsp; The easiest way to accomplish this would be to keep an array of 
+message values for each object that subclasses the window.&nbsp; However, this 
+would be inefficient on two fronts.&nbsp; First, it would require duplicate 
+values in each array if two or more objects subclassed the same message.&nbsp; 
+Second, it would require iterating through one array for each object that 
+subclasses a window during the callback, when performance is critical. 
+&nbsp;Using a message mask solves both of these issues.</P>
+<P><STRONG>OK, but how does it work?</STRONG></P>
+<P>Instead of an array of message values being kept for 
+each object that subclasses a window, an array is kept for each window that is subclassed.&nbsp; The messages are then shared between 
+all objects which have subclassed that window.&nbsp; In order to tell which objects 
+have requested which messages, a message mask is kept for each object.&nbsp; 
+A message mask is nothing more than an array of 32 bit 
+values used as bitmasks.&nbsp; If an&nbsp;object&nbsp;has requested the first message in the table, 
+then the first bit of the first index will be 1.&nbsp; If an object 
+has requested the 78th message in the message table, the 14th bit 
+in the 3rd index will be 1.</P>
+<P>For example, assume that Object A and Object B have both subclassed 10 
+messages on Window A.&nbsp; 5 of these messages are the same, and 5 
+are&nbsp;not, making 15 unique messages.&nbsp; What you end up with could look 
+like this:</P>
+<P>
+<TABLE style="WIDTH: 594px; HEIGHT: 387px" cellSpacing=1 cellPadding=1 width=594 
+align=left border=1>
+  
+  <TR>
+    <TD>#&nbsp; </TD>
+    <TD>Main Message Table</TD>
+    <TD>Object A</TD>
+    <TD>Object B</TD></TR>
+  <TR>
+    <TD>1</TD>
+    <TD>WM_CREATE</TD>
+    <TD>WM_CREATE</TD>
+    <TD></TD></TR>
+  <TR>
+    <TD>2</TD>
+    <TD>WM_DESTROY</TD>
+    <TD>WM_DESTROY</TD>
+    <TD>WM_DESTROY</TD></TR>
+  <TR>
+    <TD>3</TD>
+    <TD>WM_MOVE</TD>
+    <TD>WM_MOVE</TD>
+    <TD>WM_MOVE</TD></TR>
+  <TR>
+    <TD>4</TD>
+    <TD>WM_SIZE</TD>
+    <TD>WM_SIZE</TD>
+    <TD></TD></TR>
+  <TR>
+    <TD>5</TD>
+    <TD>WM_ACTIVATE</TD>
+    <TD></TD>
+    <TD>WM_ACTIVATE</TD></TR>
+  <TR>
+    <TD>6</TD>
+    <TD>WM_SETFOCUS</TD>
+    <TD>WM_SETFOCUS</TD>
+    <TD></TD></TR>
+  <TR>
+    <TD>7</TD>
+    <TD>WM_KILLFOCUS</TD>
+    <TD></TD>
+    <TD>WM_KILLFOCUS</TD></TR>
+  <TR>
+    <TD>8</TD>
+    <TD>WM_ENABLE</TD>
+    <TD>WM_ENABLE</TD>
+    <TD>WM_ENABLE</TD></TR>
+  <TR>
+    <TD>9</TD>
+    <TD>WM_SETREDRAW</TD>
+    <TD>WM_SETREDRAW</TD>
+    <TD>WM_SETREDRAW</TD></TR>
+  <TR>
+    <TD>10</TD>
+    <TD>WM_SETTEXT</TD>
+    <TD>WM_SETTEXT</TD>
+    <TD></TD></TR>
+  <TR>
+    <TD>11</TD>
+    <TD>WM_GETTEXTLENGTH</TD>
+    <TD>WM_GETTEXTLENGTH</TD>
+    <TD></TD></TR>
+  <TR>
+    <TD>12</TD>
+    <TD>WM_PAINT</TD>
+    <TD>WM_PAINT</TD>
+    <TD>WM_PAINT</TD></TR>
+  <TR>
+    <TD>13</TD>
+    <TD>WM_CLOSE</TD>
+    <TD></TD>
+    <TD>WM_CLOSE</TD></TR>
+  <TR>
+    <TD>14</TD>
+    <TD>WM_QUIT</TD>
+    <TD></TD>
+    <TD>WM_QUIT</TD></TR>
+  <TR>
+    <TD>15</TD>
+    <TD>WM_CLOSE</TD>
+    <TD></TD>
+    <TD>WM_CLOSE</TD></TR></TABLE></P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>&nbsp;</P>
+<P>With&nbsp;fewer than&nbsp;32 unique messages&nbsp;requested, the message mask 
+would only use the first 32 bit index, and the values would be (Object A) 
+&amp;HFAF&amp; and (Object B) &amp;H79D6&amp;.</P>
+<P><STRONG>What are the limitations of this design?</STRONG></P>
+<P>The message masks are store in static arrays.&nbsp; While this provides 
+excellent speed, it also imposes a strict limit on the number of unique messages 
+that can be subclassed for each window.&nbsp; The maximum number of unique 
+messages available to be subclassed is 32 * (the number of indexes in the 
+message mask array).&nbsp; The default number of indexes is 4, which provides 
+minimal memory usage, but limits unique messages to 128.&nbsp; It is important 
+to realize that this&nbsp;applies to *unique* messages.&nbsp; If you have one 
+object which subclasses 120 messages, you can create an unlimited number of 
+instances of that object, even subclassing the same window, with no 
+problems.&nbsp; If you need to subclass more than 128 unique messages on a 
+single window, adjust the MsgMaskCount constant in the pcSubclassHub.cls 
+module.&nbsp; For example, if this value was changed to 8, then 256 unique 
+messages would be available, and 4 extra bytes would be allocated for every 
+subclass created by every object, regardless of whether the extra message space 
+was utilized or not.</P>
+<P><STRONG>Where can I go to start fooling with the code?</STRONG></P>
+<P>The message masks are maintained by pcSubclassHub.cls.&nbsp; As the name 
+implies, this class is responsible for keeping track of which objects are 
+requesting which messages and relaying them appropriately.</P>
+
+</BODY>
+</HTML>
